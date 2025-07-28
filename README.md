@@ -1,6 +1,4 @@
-# ALEA
-
-**Agent-based modelling Library for Evolution and Adaptation**
+# ALEA: Agent-based Lab for Evolution and Adaptation
 
 ## Overview
 

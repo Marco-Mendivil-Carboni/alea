@@ -11,6 +11,8 @@ fn main() {
 
     utils::init_logger();
 
+    log::trace!("...");
+    log::debug!("hey");
     log::info!("This is an info message.");
     log::warn!("This is a warning message.");
     log::error!("This is an error message.");

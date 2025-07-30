@@ -38,6 +38,70 @@ macro_rules! check_number {
     };
 }
 
+fn _check_vector(vec: &[f64], name: &str, expected_len: usize, check_prob: bool) -> Result<()> {
+    if vec.len() != expected_len {
+        bail!(
+            "`{name}` length must be {}, but is {}",
+            expected_len,
+            vec.len()
+        );
+    }
+    if check_prob {
+        if vec.iter().any(|&v| v < 0.0 || v > 1.0) {
+            bail!("`{name}` must be a probability vector with values in [0.0, 1.0]");
+        }
+        let sum: f64 = vec.iter().sum();
+        if (sum - 1.0).abs() > 1e-6 {
+            bail!("`{name}` probability vector must sum to 1.0 (got {})", sum);
+        }
+    }
+    Ok(())
+}
+
+macro_rules! check_vector {
+    ($vec:expr, $expected_len:expr, $check_prob:expr) => {
+        _check_vector(&$vec, stringify!($vec), $expected_len, $check_prob)
+    };
+}
+
+fn _check_matrix(
+    matrix: &[Vec<f64>],
+    name: &str,
+    expected_size: (usize, usize),
+    check_trans: bool,
+) -> Result<()> {
+    let (exp_rows, exp_cols) = expected_size;
+
+    if matrix.len() != exp_rows {
+        bail!(
+            "`{name}` row count must be {}, but is {}",
+            exp_rows,
+            matrix.len()
+        );
+    }
+
+    for (i, row) in matrix.iter().enumerate() {
+        if row.len() != exp_cols {
+            bail!(
+                "`{name}` row {} length must be {}, but is {}",
+                i,
+                exp_cols,
+                row.len()
+            );
+        }
+        if check_trans {
+            _check_vector(row, &format!("{} row {}", name, i), exp_cols, true)?;
+        }
+    }
+    Ok(())
+}
+
+macro_rules! check_matrix {
+    ($matrix:expr, $expected_size:expr, $check_trans:expr) => {
+        _check_matrix(&$matrix, stringify!($matrix), $expected_size, $check_trans)
+    };
+}
+
 impl MdlPar {
     pub fn new(params: serde_json::Value) -> Result<Self> {
         let mdl_par: MdlPar =
@@ -45,6 +109,10 @@ impl MdlPar {
 
         check_number!(mdl_par.n_env, 1..100)?;
         check_number!(mdl_par.n_phe, 1..100)?;
+
+        check_matrix!(mdl_par.prob_env, (mdl_par.n_env, mdl_par.n_env), true)?;
+        check_matrix!(mdl_par.prob_rep, (mdl_par.n_phe, mdl_par.n_env), false)?;
+        check_matrix!(mdl_par.prob_dec, (mdl_par.n_phe, mdl_par.n_env), false)?;
 
         check_number!(mdl_par.n_agt_init, 1..10_000)?;
         check_number!(mdl_par.std_dev_mut, 0.0..1.0)?;

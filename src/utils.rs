@@ -39,8 +39,11 @@ pub fn init_logger() {
         .init();
 }
 
-// count directory entries matching regex pattern
-pub fn regex_count(dir: &Path, pattern: &str) -> Result<usize> {
+pub fn regex_count<P>(dir: P, pattern: &str) -> Result<usize>
+where
+    P: AsRef<Path>,
+{
+    let dir = dir.as_ref();
     let regex = Regex::new(pattern)?;
 
     let count = fs::read_dir(dir)

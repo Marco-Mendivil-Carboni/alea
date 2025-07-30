@@ -1,4 +1,9 @@
+use anyhow::{Result, bail};
 use serde::Deserialize;
+use std::fmt::{Debug, Display};
+use std::fs::{File, OpenOptions};
+use std::io::{Read, Write};
+use std::ops::RangeBounds;
 
 pub type Matrix = Vec<Vec<f64>>;
 
@@ -16,18 +21,33 @@ pub struct MdlPar {
     pub std_dev_mut: f64,
 }
 
-fn check_number_range<T: PartialOrd + std::fmt::Display>(
-    number: T,
-    name: &str,
-    lower: T,
-    upper: T,
-) -> Result<(), String> {
-    if lower <= number && number < upper {
-        Ok(())
-    } else {
-        Err(format!(
-            "The {} value {} is out of range ({}-{}).",
-            name, number, lower, upper
-        ))
+fn number_is_valid<T, R>(val: T, name: &str, range: R) -> Result<()>
+where
+    T: PartialOrd + Display,
+    R: RangeBounds<T> + Debug,
+{
+    if !range.contains(&val) {
+        bail!("`{name}` must be in the range {:?}, but is {val}", range);
+    }
+    Ok(())
+}
+
+macro_rules! number_is_valid {
+    ($val:expr, $range:expr) => {{ number_is_valid($val, stringify!($val), $range) }};
+}
+
+impl MdlPar {
+    // Constructor from serde-compatible data (e.g. JSON, YAML)
+    pub fn new(params: &serde_json::Value) -> Result<Self> {
+        let mdlpar: MdlPar = serde_json::from_value(params.clone())
+            .map_err(|e| anyhow::anyhow!("Failed to deserialize MdlPar: {}", e))?;
+
+        number_is_valid!(mdlpar.n_env, 1..100)?;
+        number_is_valid!(mdlpar.n_phe, 1..100)?;
+
+        number_is_valid!(mdlpar.n_agt_init, 1..10_000)?;
+        number_is_valid!(mdlpar.std_dev_mut, 0.0..1.0)?;
+
+        Ok(mdlpar)
     }
 }

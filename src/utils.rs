@@ -47,15 +47,19 @@ where
     let regex = Regex::new(pattern)?;
 
     let count = fs::read_dir(dir)
-        .with_context(|| format!("Failed to read {}", dir.display()))?
+        .with_context(|| format!("failed to read {}", dir.display()))?
         .filter_map(Result::ok)
         .filter(|entry| {
             entry
                 .file_name()
                 .to_str()
-                .map_or(false, |name| regex.is_match(name))
+                .is_some_and(|name| regex.is_match(name))
         })
         .count();
 
     Ok(count)
+}
+
+fn approx_equal(a: f64, b: f64, epsilon: f64) -> bool {
+    (a - b).abs() < epsilon
 }

@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 use std::fmt::{Debug, Display};
 // use std::fs::{File, OpenOptions};
@@ -21,7 +21,7 @@ pub struct MdlPar {
     pub std_dev_mut: f64,
 }
 
-fn check_number<T, R>(val: T, name: &str, range: R) -> Result<()>
+fn _check_number<T, R>(val: T, name: &str, range: R) -> Result<()>
 where
     T: PartialOrd + Display,
     R: RangeBounds<T> + Debug,
@@ -32,21 +32,23 @@ where
     Ok(())
 }
 
-macro_rules! ensure_number {
-    ($val:expr, $range:expr) => {{ check_number($val, stringify!($val), $range) }};
+macro_rules! check_number {
+    ($val:expr, $range:expr) => {
+        _check_number($val, stringify!($val), $range)
+    };
 }
 
 impl MdlPar {
     pub fn new(params: serde_json::Value) -> Result<Self> {
-        let mdlpar: MdlPar = serde_json::from_value(params)
-            .map_err(|e| anyhow::anyhow!("Failed to deserialize MdlPar: {}", e))?;
+        let mdl_par: MdlPar =
+            serde_json::from_value(params).context("failed to deserialize MdlPar")?;
 
-        ensure_number!(mdlpar.n_env, 1..100)?;
-        ensure_number!(mdlpar.n_phe, 1..100)?;
+        check_number!(mdl_par.n_env, 1..100)?;
+        check_number!(mdl_par.n_phe, 1..100)?;
 
-        ensure_number!(mdlpar.n_agt_init, 1..10_000)?;
-        ensure_number!(mdlpar.std_dev_mut, 0.0..1.0)?;
+        check_number!(mdl_par.n_agt_init, 1..10_000)?;
+        check_number!(mdl_par.std_dev_mut, 0.0..1.0)?;
 
-        Ok(mdlpar)
+        Ok(mdl_par)
     }
 }

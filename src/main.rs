@@ -1,9 +1,15 @@
 mod utils;
 
+use crate::utils::regex_count;
 use anyhow::Result;
+use serde::Deserialize;
+use std::fs;
 use std::{env, path::Path};
 
-use crate::utils::regex_count;
+#[derive(Deserialize)]
+struct Config {
+    matrix: Vec<Vec<f64>>,
+}
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -26,6 +32,11 @@ fn main() -> Result<()> {
         Ok(count) => log::info!("count = {count}"),
         Err(err) => log::error!("{:#}", err),
     }
+
+    let data = fs::read_to_string("config.json")?;
+    let config: Config = serde_json::from_str(&data)?;
+
+    log::info!("matrix = {:?}", config.matrix);
 
     Ok(())
 }

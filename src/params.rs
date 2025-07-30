@@ -46,14 +46,16 @@ fn _check_vector(vec: &[f64], name: &str, expected_len: usize, check_prob: bool)
             vec.len()
         );
     }
-    if check_prob {
-        if vec.iter().any(|&v| v < 0.0 || v > 1.0) {
-            bail!("`{name}` must be a probability vector with values in [0.0, 1.0]");
-        }
-        let sum: f64 = vec.iter().sum();
-        if (sum - 1.0).abs() > 1e-6 {
-            bail!("`{name}` probability vector must sum to 1.0 (got {})", sum);
-        }
+    if !check_prob {
+        return Ok(());
+    }
+    let sum: f64 = vec.iter().sum();
+    if vec.iter().any(|&x| x < 0.0) {
+        bail!("`{name}` has negative elements");
+    }
+    let tol = 1e-6;
+    if (sum - 1.0).abs() > tol {
+        bail!("`{name}` is not a probability vector");
     }
     Ok(())
 }
@@ -65,22 +67,21 @@ macro_rules! check_vector {
 }
 
 fn _check_matrix(
-    matrix: &[Vec<f64>],
+    mat: &[Vec<f64>],
     name: &str,
-    expected_size: (usize, usize),
+    exp_size: (usize, usize),
     check_trans: bool,
 ) -> Result<()> {
-    let (exp_rows, exp_cols) = expected_size;
+    let (exp_rows, exp_cols) = exp_size;
 
-    if matrix.len() != exp_rows {
+    if mat.len() != exp_rows {
         bail!(
-            "`{name}` row count must be {}, but is {}",
+            "`{name}` must have {} rows, but has {}",
             exp_rows,
-            matrix.len()
+            mat.len()
         );
     }
-
-    for (i, row) in matrix.iter().enumerate() {
+    for (i, row) in mat.iter().enumerate() {
         if row.len() != exp_cols {
             bail!(
                 "`{name}` row {} length must be {}, but is {}",
@@ -89,9 +90,15 @@ fn _check_matrix(
                 row.len()
             );
         }
-        if check_trans {
-            _check_vector(row, &format!("{} row {}", name, i), exp_cols, true)?;
-        }
+    }
+    if !check_trans {
+        return Ok(());
+    }
+    if exp_rows != exp_cols {
+        bail!("`{name}` is not a square matrix");
+    }
+    for (i, row) in mat.iter().enumerate() {
+        _check_vector(row, &format!("{} row {}", name, i), exp_cols, true)?;
     }
     Ok(())
 }

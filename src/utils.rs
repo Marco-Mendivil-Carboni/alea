@@ -49,9 +49,11 @@ where
     let count = fs::read_dir(dir)
         .with_context(|| format!("Failed to read {}", dir.display()))?
         .filter_map(Result::ok)
-        .filter(|entry| match entry.file_name().to_str() {
-            Some(name) if regex.is_match(name) => true,
-            _ => false,
+        .filter(|entry| {
+            entry
+                .file_name()
+                .to_str()
+                .map_or(false, |name| regex.is_match(name))
         })
         .count();
 

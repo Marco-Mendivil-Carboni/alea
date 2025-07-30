@@ -4,8 +4,8 @@ mod utils;
 use crate::params::MdlPar;
 use crate::utils::regex_count;
 use anyhow::Result;
+use std::env;
 use std::fs;
-use std::{env, path::Path};
 
 fn main() -> Result<()> {
     utils::init_logger();
@@ -27,7 +27,7 @@ fn main() -> Result<()> {
 
     let json_str = fs::read_to_string("config.json")?;
     let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
-    let mdlpar = MdlPar::new(&json_val).unwrap_or_else(|err| {
+    let mdlpar = MdlPar::new(json_val).unwrap_or_else(|err| {
         log::error!("Failed to initialize model parameters: {:#?}", err);
         std::process::exit(1);
     });

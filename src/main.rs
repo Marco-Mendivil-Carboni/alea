@@ -12,13 +12,13 @@ struct Config {
 }
 
 fn main() -> Result<()> {
+    utils::init_logger();
+
     let args: Vec<String> = env::args().collect();
 
     let name = &args[0];
 
     println!("Program name: {name}");
-
-    utils::init_logger();
 
     log::trace!("...");
     log::debug!("hey");

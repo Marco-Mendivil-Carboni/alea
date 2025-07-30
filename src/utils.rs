@@ -23,19 +23,16 @@ pub fn init_logger() {
         .init();
 }
 
-// count files matching pattern
+// count directory entries matching regex pattern
 pub fn regex_count(dir: &Path, pattern: &str) -> Result<usize> {
     let regex = Regex::new(pattern)?;
-    let mut count = 0;
-    for entry in fs::read_dir(dir)
-        .with_context(|| format!("Failed to read directory '{}'", dir.display()))?
-    {
-        let entry = entry?;
-        if let Some(file_name_str) = entry.file_name().to_str() {
-            if regex.is_match(file_name_str) {
-                count += 1;
-            }
-        }
-    }
+    let count = fs::read_dir(dir)
+        .with_context(|| format!("Failed to read '{}'", dir.display()))?
+        .filter_map(Result::ok)
+        .filter(|entry| match entry.file_name().to_str() {
+            Some(name) if regex.is_match(name) => true,
+            _ => false,
+        })
+        .count();
     Ok(count)
 }

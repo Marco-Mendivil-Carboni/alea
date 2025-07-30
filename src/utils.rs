@@ -44,7 +44,7 @@ pub fn regex_count(dir: &Path, pattern: &str) -> Result<usize> {
     let regex = Regex::new(pattern)?;
 
     let count = fs::read_dir(dir)
-        .with_context(|| format!("Failed to read '{}'", dir.display()))?
+        .with_context(|| format!("Failed to read {}", dir.display()))?
         .filter_map(Result::ok)
         .filter(|entry| match entry.file_name().to_str() {
             Some(name) if regex.is_match(name) => true,

@@ -20,77 +20,16 @@ pub struct MdlPar {
     pub std_dev_mut: f64,
 }
 
-fn _check_number<T, R>(value: T, name: &str, range: R) -> Result<()>
-where
-    T: PartialOrd + Display,
-    R: RangeBounds<T> + Debug,
-{
-    if !range.contains(&value) {
-        bail!("{name} must be in the range {:?}, but is {value}", range);
-    }
-    Ok(())
-}
-
 macro_rules! check_number {
     ($value:expr, $range:expr) => {
         _check_number($value, stringify!($value), $range)
     };
 }
 
-fn _check_vector(
-    vector: ArrayView1<f64>,
-    name: &str,
-    expected_len: usize,
-    check_prob: bool,
-) -> Result<()> {
-    let len = vector.len();
-    if len != expected_len {
-        bail!("{name} must have length {expected_len}, but has {len}");
-    }
-    if !check_prob {
-        return Ok(());
-    }
-    if vector.iter().any(|&element| element < 0.0) {
-        bail!("{name} must have only non-negative elements");
-    }
-    let sum: f64 = vector.iter().sum();
-    let tol = 1e-6;
-    if (sum - 1.0).abs() > tol {
-        bail!("{name} must sum to 1.0 (tolerance: {tol}), but sums to {sum}");
-    }
-    Ok(())
-}
-
 macro_rules! check_vector {
     ($vector:expr, $expected_len:expr, $check_prob:expr) => {
         _check_vector(&$vector, stringify!($vector), $expected_len, $check_prob)
     };
-}
-
-fn _check_matrix(
-    matrix: ArrayView2<f64>,
-    name: &str,
-    expected_shape: &[usize],
-    check_trans: bool,
-) -> Result<()> {
-    let shape = matrix.shape();
-    if shape != expected_shape {
-        bail!(
-            "{name} must have shape {:?}, but has {:?}",
-            expected_shape,
-            shape
-        );
-    }
-    if !check_trans {
-        return Ok(());
-    }
-    if shape[0] != shape[1] {
-        bail!("{name} is not a square matrix");
-    }
-    for (i_row, row) in matrix.outer_iter().enumerate() {
-        _check_vector(row, &format!("{name} row {i_row}"), shape[1], true)?;
-    }
-    Ok(())
 }
 
 macro_rules! check_matrix {
@@ -128,4 +67,65 @@ impl MdlPar {
 
         Ok(mdl_par)
     }
+}
+
+fn _check_number<T, R>(value: T, name: &str, range: R) -> Result<()>
+where
+    T: PartialOrd + Display,
+    R: RangeBounds<T> + Debug,
+{
+    if !range.contains(&value) {
+        bail!("{name} must be in the range {:?}, but is {value}", range);
+    }
+    Ok(())
+}
+
+fn _check_vector(
+    vector: ArrayView1<f64>,
+    name: &str,
+    expected_len: usize,
+    check_prob: bool,
+) -> Result<()> {
+    let len = vector.len();
+    if len != expected_len {
+        bail!("{name} must have length {expected_len}, but has {len}");
+    }
+    if !check_prob {
+        return Ok(());
+    }
+    if vector.iter().any(|&element| element < 0.0) {
+        bail!("{name} must have only non-negative elements");
+    }
+    let sum: f64 = vector.iter().sum();
+    let tol = 1e-6;
+    if (sum - 1.0).abs() > tol {
+        bail!("{name} must sum to 1.0 (tolerance: {tol}), but sums to {sum}");
+    }
+    Ok(())
+}
+
+fn _check_matrix(
+    matrix: ArrayView2<f64>,
+    name: &str,
+    expected_shape: &[usize],
+    check_trans: bool,
+) -> Result<()> {
+    let shape = matrix.shape();
+    if shape != expected_shape {
+        bail!(
+            "{name} must have shape {:?}, but has {:?}",
+            expected_shape,
+            shape
+        );
+    }
+    if !check_trans {
+        return Ok(());
+    }
+    if shape[0] != shape[1] {
+        bail!("{name} is not a square matrix");
+    }
+    for (i_row, row) in matrix.outer_iter().enumerate() {
+        _check_vector(row, &format!("row {i_row} of {name}"), shape[1], true)?;
+    }
+    Ok(())
 }

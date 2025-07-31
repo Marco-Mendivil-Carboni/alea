@@ -1,20 +1,20 @@
 use anyhow::{Context, Result, bail};
+use ndarray::Array2;
+use ron::de::from_str;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 use std::ops::RangeBounds;
 // use std::fs::{File, OpenOptions};
 // use std::io::{Read, Write};
 
-pub type Matrix = Vec<Vec<f64>>;
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MdlPar {
     pub n_env: usize,
     pub n_phe: usize,
 
-    pub prob_env: Matrix,
-    pub prob_rep: Matrix,
-    pub prob_dec: Matrix,
+    pub prob_env: Array2<f64>,
+    pub prob_rep: Array2<f64>,
+    pub prob_dec: Array2<f64>,
 
     pub n_agt_init: usize,
 
@@ -101,16 +101,15 @@ macro_rules! check_matrix {
 }
 
 impl MdlPar {
-    pub fn new(params: serde_yaml::Value) -> Result<Self> {
-        let mdl_par: MdlPar =
-            serde_yaml::from_value(params).context("failed to deserialize MdlPar")?;
+    pub fn new(params: &str) -> Result<Self> {
+        let mdl_par: MdlPar = from_str(params).context("failed to deserialize MdlPar")?;
 
         check_number!(mdl_par.n_env, 1..100)?;
         check_number!(mdl_par.n_phe, 1..100)?;
 
-        check_matrix!(mdl_par.prob_env, (mdl_par.n_env, mdl_par.n_env), true)?;
-        check_matrix!(mdl_par.prob_rep, (mdl_par.n_phe, mdl_par.n_env), false)?;
-        check_matrix!(mdl_par.prob_dec, (mdl_par.n_phe, mdl_par.n_env), false)?;
+        // check_matrix!(mdl_par.prob_env, (mdl_par.n_env, mdl_par.n_env), true)?;
+        // check_matrix!(mdl_par.prob_rep, (mdl_par.n_phe, mdl_par.n_env), false)?;
+        // check_matrix!(mdl_par.prob_dec, (mdl_par.n_phe, mdl_par.n_env), false)?;
 
         check_number!(mdl_par.n_agt_init, 1..10_000)?;
         check_number!(mdl_par.std_dev_mut, 0.0..1.0)?;

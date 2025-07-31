@@ -22,103 +22,74 @@ pub struct MdlPar {
 
 impl MdlPar {
     pub fn new(params: &str) -> Result<Self> {
-        let mdl_par: MdlPar =
+        let mp: MdlPar =
             ron::de::from_str(params).context("failed to deserialize MdlPar value from string")?;
 
-        check_number(mdl_par.n_env, "number of environments", 1..100)?;
-        check_number(mdl_par.n_phe, "number of phenotypes", 1..100)?;
+        check_number(mp.n_env, 1..100).context("number of environments")?;
+        check_number(mp.n_phe, 1..100).context("number of phenotypes")?;
 
-        check_matrix(
-            mdl_par.prob_env.view(),
-            "environment probability matrix",
-            (mdl_par.n_env, mdl_par.n_env),
-            true,
-        )?;
-        check_matrix(
-            mdl_par.prob_rep.view(),
-            "replication probability matrix",
-            (mdl_par.n_phe, mdl_par.n_env),
-            false,
-        )?;
-        check_matrix(
-            mdl_par.prob_dec.view(),
-            "decease probability matrix",
-            (mdl_par.n_phe, mdl_par.n_env),
-            false,
-        )?;
+        check_matrix(mp.prob_env.view(), (mp.n_env, mp.n_env), true)
+            .context("environment probability matrix")?;
+        check_matrix(mp.prob_rep.view(), (mp.n_phe, mp.n_env), false)
+            .context("replication probability matrix")?;
+        check_matrix(mp.prob_dec.view(), (mp.n_phe, mp.n_env), false)
+            .context("decease probability matrix")?;
 
-        check_number(mdl_par.n_agt_init, "initial number of agents", 1..10_000)?;
+        check_number(mp.n_agt_init, 1..10_000).context("initial number of agents")?;
 
-        check_number(mdl_par.std_dev_mut, "mutation standard deviation", 0.0..1.0)?;
+        check_number(mp.std_dev_mut, 0.0..1.0).context("mutation standard deviation")?;
 
-        Ok(mdl_par)
+        Ok(mp)
     }
 }
 
-fn check_number<T, R>(value: T, value_name: &str, range: R) -> Result<()>
+fn check_number<T, R>(val: T, range: R) -> Result<()>
 where
     T: PartialOrd + Display,
     R: RangeBounds<T> + Debug,
 {
-    if !range.contains(&value) {
-        bail!(
-            "{value_name} must be in the range {:?}, but is {value}",
-            range
-        );
+    if !range.contains(&val) {
+        bail!("value must be in the range {:?}, but is {val}", range);
     }
 
     Ok(())
 }
 
-fn check_vector(
-    vector: ArrayView1<f64>,
-    vector_name: &str,
-    expected_len: usize,
-    check_prob: bool,
-) -> Result<()> {
-    let len = vector.len();
-    if len != expected_len {
-        bail!("{vector_name} length must be {expected_len}, but is {len}");
+fn check_vector(vec: ArrayView1<f64>, exp_len: usize, prob_vec: bool) -> Result<()> {
+    let len = vec.len();
+    if len != exp_len {
+        bail!("vector length must be {exp_len}, but is {len}");
     }
 
-    if !check_prob {
+    if !prob_vec {
         return Ok(());
     }
-    if vector.iter().any(|&element| element < 0.0) {
-        bail!("{vector_name} must have only non-negative elements");
+    if vec.iter().any(|&ele| ele < 0.0) {
+        bail!("vector must have only non-negative elements");
     }
-    let sum: f64 = vector.iter().sum();
+    let sum: f64 = vec.iter().sum();
     let tol = 1e-6;
     if (sum - 1.0).abs() > tol {
-        bail!("{vector_name} must sum to 1.0 (tolerance: {tol}), but sums to {sum}");
+        bail!("vector must sum to 1.0 (tolerance: {tol}), but sums to {sum}");
     }
 
     Ok(())
 }
 
-fn check_matrix(
-    matrix: ArrayView2<f64>,
-    matrix_name: &str,
-    expected_dim: (usize, usize),
-    check_trans: bool,
-) -> Result<()> {
-    let dim = matrix.dim();
-    if dim != expected_dim {
-        bail!(
-            "{matrix_name} shape must be {:?}, but is {:?}",
-            expected_dim,
-            dim
-        );
+fn check_matrix(mat: ArrayView2<f64>, exp_dim: (usize, usize), trans_mat: bool) -> Result<()> {
+    let dim = mat.dim();
+    if dim != exp_dim {
+        bail!("matrix shape must be {:?}, but is {:?}", exp_dim, dim);
     }
 
-    if !check_trans {
+    if !trans_mat {
         return Ok(());
     }
     if dim.0 != dim.1 {
-        bail!("{matrix_name} is not a square matrix");
+        bail!("matrix is not square");
     }
-    for (i_row, row) in matrix.outer_iter().enumerate() {
-        check_vector(row, &format!("row {i_row} of {matrix_name}"), dim.1, true)?;
+    for (i_row, row) in mat.outer_iter().enumerate() {
+        check_vector(row, dim.1, true).with_context(|| format!("row {i_row}"))?;
     }
 
     Ok(())

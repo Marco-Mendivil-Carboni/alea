@@ -22,8 +22,8 @@ fn main() -> Result<()> {
     }
 
     let params = fs::read_to_string("parameters.ron")?;
-    let mdl_par = MdlPar::new(&params).unwrap_or_else(|error| {
-        log::error!("{:#?}", error);
+    let mdl_par = MdlPar::new(&params).unwrap_or_else(|err| {
+        log::error!("{:#?}", err);
         std::process::exit(1);
     });
 

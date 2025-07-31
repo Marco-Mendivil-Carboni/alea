@@ -21,14 +21,14 @@ fn main() -> Result<()> {
         Err(err) => log::error!("{:#?}", err),
     }
 
-    let json_str = fs::read_to_string("config.json")?;
-    let json_val: serde_json::Value = serde_json::from_str(&json_str)?;
-    let mdlpar = MdlPar::new(json_val).unwrap_or_else(|err| {
+    let json_str = fs::read_to_string("config.yaml")?;
+    let json_val: serde_yaml::Value = serde_yaml::from_str(&json_str)?;
+    let mdl_par = MdlPar::new(json_val).unwrap_or_else(|err| {
         log::error!("failed to initialize model parameters: {:#?}", err);
         std::process::exit(1);
     });
 
-    log::info!("matrix = {:#?}", mdlpar);
+    log::info!("mdl_par = {:#?}", mdl_par);
 
     Ok(())
 }

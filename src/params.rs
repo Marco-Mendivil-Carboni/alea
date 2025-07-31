@@ -1,13 +1,13 @@
 use anyhow::{Context, Result, bail};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
+use std::ops::RangeBounds;
 // use std::fs::{File, OpenOptions};
 // use std::io::{Read, Write};
-use std::ops::RangeBounds;
 
 pub type Matrix = Vec<Vec<f64>>;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MdlPar {
     pub n_env: usize,
     pub n_phe: usize,
@@ -27,7 +27,7 @@ where
     R: RangeBounds<T> + Debug,
 {
     if !range.contains(&val) {
-        bail!("`{name}` must be in the range {:?}, but is {val}", range);
+        bail!("{name} must be in the range {:?}, but is {val}", range);
     }
     Ok(())
 }
@@ -38,24 +38,20 @@ macro_rules! check_number {
     };
 }
 
-fn _check_vector(vec: &[f64], name: &str, expected_len: usize, check_prob: bool) -> Result<()> {
-    if vec.len() != expected_len {
-        bail!(
-            "`{name}` length must be {}, but is {}",
-            expected_len,
-            vec.len()
-        );
+fn _check_vector(vec: &[f64], name: &str, exp_len: usize, check_prob: bool) -> Result<()> {
+    if vec.len() != exp_len {
+        bail!("{name} must have {exp_len} elements, but has {}", vec.len());
     }
     if !check_prob {
         return Ok(());
     }
-    let sum: f64 = vec.iter().sum();
     if vec.iter().any(|&x| x < 0.0) {
-        bail!("`{name}` has negative elements");
+        bail!("{name} must have only non-negative elements");
     }
+    let sum: f64 = vec.iter().sum();
     let tol = 1e-6;
     if (sum - 1.0).abs() > tol {
-        bail!("`{name}` is not a probability vector");
+        bail!("{name} must sum to 1.0 (tolerance: {tol}), but sums to {sum}");
     }
     Ok(())
 }
@@ -73,18 +69,13 @@ fn _check_matrix(
     check_trans: bool,
 ) -> Result<()> {
     let (exp_rows, exp_cols) = exp_size;
-
     if mat.len() != exp_rows {
-        bail!(
-            "`{name}` must have {} rows, but has {}",
-            exp_rows,
-            mat.len()
-        );
+        bail!("{name} must have {exp_rows} rows, but has {}", mat.len());
     }
     for (i, row) in mat.iter().enumerate() {
         if row.len() != exp_cols {
             bail!(
-                "`{name}` row {} length must be {}, but is {}",
+                "{name} row {} length must be {}, but is {}",
                 i,
                 exp_cols,
                 row.len()
@@ -95,7 +86,7 @@ fn _check_matrix(
         return Ok(());
     }
     if exp_rows != exp_cols {
-        bail!("`{name}` is not a square matrix");
+        bail!("{name} is not a square matrix");
     }
     for (i, row) in mat.iter().enumerate() {
         _check_vector(row, &format!("{} row {}", name, i), exp_cols, true)?;
@@ -110,9 +101,9 @@ macro_rules! check_matrix {
 }
 
 impl MdlPar {
-    pub fn new(params: serde_json::Value) -> Result<Self> {
+    pub fn new(params: serde_yaml::Value) -> Result<Self> {
         let mdl_par: MdlPar =
-            serde_json::from_value(params).context("failed to deserialize MdlPar")?;
+            serde_yaml::from_value(params).context("failed to deserialize MdlPar")?;
 
         check_number!(mdl_par.n_env, 1..100)?;
         check_number!(mdl_par.n_phe, 1..100)?;

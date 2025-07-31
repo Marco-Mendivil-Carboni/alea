@@ -19,10 +19,7 @@ pub fn init_logger() {
             };
 
             let file = record.file().unwrap_or("unknown");
-            let line = record
-                .line()
-                .map(|l| l.to_string())
-                .unwrap_or_else(|| "unknown".to_string());
+            let line = record.line().unwrap_or(0);
 
             writeln!(
                 buffer,

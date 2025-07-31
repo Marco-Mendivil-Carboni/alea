@@ -23,16 +23,16 @@ fn main() -> Result<()> {
 
     let params = fs::read_to_string("parameters.ron")?;
     let mdl_par = MdlPar::new(&params).unwrap_or_else(|err| {
-        log::error!("{:#?}", err);
+        log::error!("{:?}", err);
         std::process::exit(1);
     });
 
-    log::info!("mdl_par = {:#?}", mdl_par);
+    log::info!("mdl_par = {:?}", mdl_par);
 
-    use ron::ser::{PrettyConfig, to_string_pretty};
+    // use ron::ser::{PrettyConfig, to_string_pretty};
 
-    let ron_str = to_string_pretty(&mdl_par, PrettyConfig::default())?;
-    println!("{}", ron_str);
+    // let ron_str = to_string_pretty(&mdl_par, PrettyConfig::default())?;
+    // println!("{}", ron_str);
 
     Ok(())
 }

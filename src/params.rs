@@ -31,19 +31,19 @@ impl MdlPar {
         check_matrix(
             mdl_par.prob_env.view(),
             "environment probability matrix",
-            &[mdl_par.n_env, mdl_par.n_env],
+            (mdl_par.n_env, mdl_par.n_env),
             true,
         )?;
         check_matrix(
             mdl_par.prob_rep.view(),
             "replication probability matrix",
-            &[mdl_par.n_phe, mdl_par.n_env],
+            (mdl_par.n_phe, mdl_par.n_env),
             false,
         )?;
         check_matrix(
             mdl_par.prob_dec.view(),
             "decease probability matrix",
-            &[mdl_par.n_phe, mdl_par.n_env],
+            (mdl_par.n_phe, mdl_par.n_env),
             false,
         )?;
 
@@ -78,7 +78,7 @@ fn check_vector(
 ) -> Result<()> {
     let len = vector.len();
     if len != expected_len {
-        bail!("{vector_name} must have length {expected_len}, but has {len}");
+        bail!("{vector_name} length must be {expected_len}, but is {len}");
     }
 
     if !check_prob {
@@ -99,31 +99,26 @@ fn check_vector(
 fn check_matrix(
     matrix: ArrayView2<f64>,
     matrix_name: &str,
-    expected_shape: &[usize],
+    expected_dim: (usize, usize),
     check_trans: bool,
 ) -> Result<()> {
-    let shape = matrix.shape();
-    if shape != expected_shape {
+    let dim = matrix.dim();
+    if dim != expected_dim {
         bail!(
-            "{matrix_name} must have shape {:?}, but has {:?}",
-            expected_shape,
-            shape
+            "{matrix_name} shape must be {:?}, but is {:?}",
+            expected_dim,
+            dim
         );
     }
 
     if !check_trans {
         return Ok(());
     }
-    if shape[0] != shape[1] {
+    if dim.0 != dim.1 {
         bail!("{matrix_name} is not a square matrix");
     }
     for (i_row, row) in matrix.outer_iter().enumerate() {
-        check_vector(
-            row,
-            &format!("row {i_row} of {matrix_name}"),
-            shape[1],
-            true,
-        )?;
+        check_vector(row, &format!("row {i_row} of {matrix_name}"), dim.1, true)?;
     }
 
     Ok(())

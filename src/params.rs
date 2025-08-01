@@ -30,11 +30,11 @@ impl Params {
         check_number(par.n_phe, 1..100).context("invalid number of phenotypes")?;
 
         check_matrix(par.prob_env.view(), (par.n_env, par.n_env), true)
-            .context("invalid environment probability matrix")?;
+            .context("invalid environment probabilities")?;
         check_matrix(par.prob_rep.view(), (par.n_phe, par.n_env), false)
-            .context("invalid replication probability matrix")?;
+            .context("invalid replication probabilities")?;
         check_matrix(par.prob_dec.view(), (par.n_phe, par.n_env), false)
-            .context("invalid decease probability matrix")?;
+            .context("invalid decease probabilities")?;
 
         check_number(par.n_agt_init, 1..100_000).context("invalid initial number of agents")?;
 
@@ -47,7 +47,7 @@ impl Params {
     }
 }
 
-fn check_number<T, R>(val: T, range: R) -> Result<()>
+pub fn check_number<T, R>(val: T, range: R) -> Result<()>
 where
     T: PartialOrd + Display,
     R: RangeBounds<T> + Debug,
@@ -59,7 +59,7 @@ where
     Ok(())
 }
 
-fn check_vector(vec: ArrayView1<f64>, exp_len: usize, prob_vec: bool) -> Result<()> {
+pub fn check_vector(vec: ArrayView1<f64>, exp_len: usize, prob_vec: bool) -> Result<()> {
     let len = vec.len();
     if len != exp_len {
         bail!("vector length must be {exp_len}, but is {len}");

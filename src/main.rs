@@ -2,12 +2,17 @@ mod data;
 mod params;
 mod utils;
 
+use crate::data::{AgtData, SimData};
 use crate::params::Params;
 use crate::utils::regex_count;
 use anyhow::Context;
 use anyhow::Result;
+use ndarray::Array1;
+use postcard::{from_bytes, to_allocvec};
+use ron::ser::{PrettyConfig, to_string_pretty};
 use std::env;
 use std::fs;
+use std::path::Path;
 
 fn main() -> Result<()> {
     utils::init_logger();
@@ -23,20 +28,45 @@ fn main() -> Result<()> {
         Err(err) => log::error!("{:#}", err),
     }
 
-    let params = fs::read_to_string("parameters.ron")?;
-    let mdl_par = Params::new(&params)
+    let par_str = fs::read_to_string("parameters.ron")?;
+    let par = Params::new(&par_str)
         .context("failed to initialize parameters")
         .unwrap_or_else(|err| {
             log::error!("{:?}", err);
             std::process::exit(1);
         });
 
-    log::info!("mdl_par = {:?}", mdl_par);
+    log::info!("par = {:#?}", par);
 
-    // use ron::ser::{PrettyConfig, to_string_pretty};
+    let par_str = to_string_pretty(&par, PrettyConfig::default())?;
+    fs::write("parameters.ron", par_str)?;
 
-    // let ron_str = to_string_pretty(&mdl_par, PrettyConfig::default())?;
-    // println!("{}", ron_str);
+    let path = Path::new("frame.bin");
+    let mut sim_data = if path.exists() {
+        let data = fs::read(path).context("failed to read frame.bin")?;
+        let sim_data: SimData =
+            from_bytes(&data).context("failed to deserialize SimData from frame.bin")?;
+        log::info!("SimData loaded successfully: {:#?}", sim_data);
+        sim_data
+    } else {
+        let sim_data = SimData {
+            env: 0,
+            agt_vec: Vec::new(),
+            n_agt_diff: 0,
+        };
+        sim_data
+    };
+
+    let n_phe = par.n_phe;
+    let phe = 0;
+    let prob_phe = Array1::from(vec![1.0 / par.n_phe as f64; par.n_phe]);
+    let agt = AgtData::new(phe, prob_phe, n_phe).context("failed to create new agent")?;
+    sim_data.agt_vec.push(agt);
+
+    let encoded = to_allocvec(&sim_data).context("failed to serialize SimData")?;
+    fs::write("frame.bin", encoded).context("failed to write to file")?;
+
+    log::info!("SimData written using bincode to output_frame.bin");
 
     Ok(())
 }

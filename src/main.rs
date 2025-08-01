@@ -1,14 +1,15 @@
 mod data;
+mod engine;
 mod params;
 mod utils;
 
 use crate::data::{AgtData, SimData};
+use crate::engine::SimEng;
 use crate::params::Params;
 use crate::utils::regex_count;
 use anyhow::Context;
 use anyhow::Result;
 use ndarray::Array1;
-use postcard::{from_bytes, to_allocvec};
 use ron::ser::{PrettyConfig, to_string_pretty};
 use std::env;
 use std::fs;
@@ -43,18 +44,13 @@ fn main() -> Result<()> {
 
     let path = Path::new("frame.bin");
     let mut sim_data = if path.exists() {
-        let data = fs::read(path).context("failed to read frame.bin")?;
-        let sim_data: SimData =
-            from_bytes(&data).context("failed to deserialize SimData from frame.bin")?;
-        log::info!("SimData loaded successfully: {:#?}", sim_data);
-        sim_data
+        SimData::load_from_file(path)?
     } else {
-        let sim_data = SimData {
+        SimData {
             env: 0,
             agt_vec: Vec::new(),
             n_agt_diff: 0,
-        };
-        sim_data
+        }
     };
 
     let n_phe = par.n_phe;
@@ -63,10 +59,7 @@ fn main() -> Result<()> {
     let agt = AgtData::new(phe, prob_phe, n_phe).context("failed to create new agent")?;
     sim_data.agt_vec.push(agt);
 
-    let encoded = to_allocvec(&sim_data).context("failed to serialize SimData")?;
-    fs::write("frame.bin", encoded).context("failed to write to file")?;
-
-    log::info!("SimData written using bincode to output_frame.bin");
+    sim_data.save_to_file("frame.bin")?;
 
     Ok(())
 }

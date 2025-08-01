@@ -33,4 +33,6 @@
     ),
     n_agt_init: 100,
     std_dev_mut: 0.01,
+    steps_per_save: 100,
+    saves_per_file: 100,
 )

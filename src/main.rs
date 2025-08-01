@@ -1,7 +1,8 @@
+mod data;
 mod params;
 mod utils;
 
-use crate::params::MdlPar;
+use crate::params::Params;
 use crate::utils::regex_count;
 use anyhow::Context;
 use anyhow::Result;
@@ -23,8 +24,8 @@ fn main() -> Result<()> {
     }
 
     let params = fs::read_to_string("parameters.ron")?;
-    let mdl_par = MdlPar::new(&params)
-        .context("failed to initialize model parameters")
+    let mdl_par = Params::new(&params)
+        .context("failed to initialize parameters")
         .unwrap_or_else(|err| {
             log::error!("{:?}", err);
             std::process::exit(1);

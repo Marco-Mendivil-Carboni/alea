@@ -3,11 +3,9 @@ use ndarray::{Array2, ArrayView1, ArrayView2};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 use std::ops::RangeBounds;
-// use std::fs::{File, OpenOptions};
-// use std::io::{Read, Write};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct MdlPar {
+pub struct Params {
     pub n_env: usize,
     pub n_phe: usize,
 
@@ -18,28 +16,34 @@ pub struct MdlPar {
     pub n_agt_init: usize,
 
     pub std_dev_mut: f64,
+
+    pub steps_per_save: usize,
+    pub saves_per_file: usize,
 }
 
-impl MdlPar {
-    pub fn new(params: &str) -> Result<Self> {
-        let mp: MdlPar =
-            ron::de::from_str(params).context("failed to deserialize MdlPar value from string")?;
+impl Params {
+    pub fn new(par_str: &str) -> Result<Self> {
+        let par: Params =
+            ron::de::from_str(par_str).context("failed to deserialize Params value from string")?;
 
-        check_number(mp.n_env, 1..100).context("number of environments")?;
-        check_number(mp.n_phe, 1..100).context("number of phenotypes")?;
+        check_number(par.n_env, 1..100).context("invalid number of environments")?;
+        check_number(par.n_phe, 1..100).context("invalid number of phenotypes")?;
 
-        check_matrix(mp.prob_env.view(), (mp.n_env, mp.n_env), true)
-            .context("environment probability matrix")?;
-        check_matrix(mp.prob_rep.view(), (mp.n_phe, mp.n_env), false)
-            .context("replication probability matrix")?;
-        check_matrix(mp.prob_dec.view(), (mp.n_phe, mp.n_env), false)
-            .context("decease probability matrix")?;
+        check_matrix(par.prob_env.view(), (par.n_env, par.n_env), true)
+            .context("invalid environment probability matrix")?;
+        check_matrix(par.prob_rep.view(), (par.n_phe, par.n_env), false)
+            .context("invalid replication probability matrix")?;
+        check_matrix(par.prob_dec.view(), (par.n_phe, par.n_env), false)
+            .context("invalid decease probability matrix")?;
 
-        check_number(mp.n_agt_init, 1..10_000).context("initial number of agents")?;
+        check_number(par.n_agt_init, 1..100_000).context("invalid initial number of agents")?;
 
-        check_number(mp.std_dev_mut, 0.0..1.0).context("mutation standard deviation")?;
+        check_number(par.std_dev_mut, 0.0..1.0).context("invalid mutation standard deviation")?;
 
-        Ok(mp)
+        check_number(par.steps_per_save, 1..10_000).context("invalid number of steps per save")?;
+        check_number(par.saves_per_file, 1..10_000).context("invalid number of saves per file")?;
+
+        Ok(par)
     }
 }
 
@@ -89,7 +93,7 @@ fn check_matrix(mat: ArrayView2<f64>, exp_dim: (usize, usize), trans_mat: bool) 
         bail!("matrix is not square");
     }
     for (i_row, row) in mat.outer_iter().enumerate() {
-        check_vector(row, dim.1, true).with_context(|| format!("row {i_row}"))?;
+        check_vector(row, dim.1, true).with_context(|| format!("invalid row {i_row}"))?;
     }
 
     Ok(())

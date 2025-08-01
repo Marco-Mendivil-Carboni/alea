@@ -53,6 +53,8 @@ fn main() -> Result<()> {
         }
     };
 
+    log::info!("SimData loaded successfully: {:?}", sim_data);
+
     let n_phe = par.n_phe;
     let phe = 0;
     let prob_phe = Array1::from(vec![1.0 / par.n_phe as f64; par.n_phe]);

@@ -35,6 +35,14 @@ pub struct SimData {
 }
 
 impl SimData {
+    pub fn new(n_agt_init: usize) -> Self {
+        Self {
+            env: 0,
+            agt_vec: Vec::with_capacity(n_agt_init),
+            n_agt_diff: 0,
+        }
+    }
+
     pub fn read_frame<P>(file: P) -> Result<Self>
     where
         P: AsRef<Path>,

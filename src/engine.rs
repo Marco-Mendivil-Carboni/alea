@@ -6,42 +6,24 @@ use rand::SeedableRng;
 use rand::prelude::*;
 use rand_chacha::ChaCha12Rng;
 use rand_distr::{LogNormal, weighted::WeightedIndex};
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::{io::Write, path::Path};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SimEng {
-    par: Params,
-
     sim_data: SimData,
-
     prng: ChaCha12Rng,
-
-    mut_dist: LogNormal<f64>,
-
-    i_agt_rep: Vec<usize>,
-    i_agt_dec: Vec<usize>,
-    i_agt_all: Vec<usize>,
+    par: Params,
 }
 
 impl SimEng {
     pub fn new(par: Params) -> Result<Self> {
-        let n_agt_init = par.n_agt_init;
-        let std_dev_mut = par.std_dev_mut;
-        let sim_eng = Self {
-            par: par,
-            sim_data: SimData {
-                env: 0,
-                agt_vec: Vec::with_capacity(n_agt_init),
-                n_agt_diff: 0,
-            },
+        Ok(Self {
+            sim_data: SimData::new(par.n_agt_init),
             prng: ChaCha12Rng::try_from_os_rng()?,
-            mut_dist: LogNormal::new(0.0, std_dev_mut)?,
-            i_agt_rep: Vec::with_capacity(n_agt_init),
-            i_agt_dec: Vec::with_capacity(n_agt_init),
-            i_agt_all: Vec::with_capacity(2 * n_agt_init),
-        };
-        Ok(sim_eng)
+            par,
+        })
     }
 
     pub fn generate_initial_condition(&mut self) {
@@ -61,7 +43,13 @@ impl SimEng {
         }
     }
 
-    pub fn perform_step(&mut self) -> Result<()> {
+    pub fn perform_step(
+        &mut self,
+        mut_dist: &LogNormal<f64>,
+        i_agt_rep: &mut Vec<usize>,
+        i_agt_dec: &mut Vec<usize>,
+        i_agt_all: &mut Vec<usize>,
+    ) -> Result<()> {
         // 1. Update environment
         let env_dist = WeightedIndex::new(self.par.prob_env.row(self.sim_data.env))?;
         self.sim_data.env = env_dist.sample(&mut self.prng);
@@ -84,29 +72,29 @@ impl SimEng {
             .collect();
 
         // 3. Select replicating and dying agents
-        self.i_agt_rep.clear();
-        self.i_agt_dec.clear();
+        i_agt_rep.clear();
+        i_agt_dec.clear();
 
         for (i, agt) in self.sim_data.agt_vec.iter().enumerate() {
             let phe = agt.phe();
             if rep_dist_vec[phe].sample(&mut self.prng) {
-                self.i_agt_rep.push(i);
+                i_agt_rep.push(i);
             }
             if dec_dist_vec[phe].sample(&mut self.prng) {
-                self.i_agt_dec.push(i);
+                i_agt_dec.push(i);
             }
         }
 
         // 4. Reproduce and mutate
-        for &i in &self.i_agt_rep {
-            let prob_phe = self.sim_data.agt_vec[i].prob_phe().clone();
+        for i in i_agt_rep {
+            let prob_phe = self.sim_data.agt_vec[*i].prob_phe().clone();
 
             let dist = WeightedIndex::new(prob_phe.iter())?;
             let phe_new = dist.sample(&mut self.prng);
 
             let mut prob_phe_new: Vec<f64> = prob_phe
                 .iter()
-                .map(|&x| x * self.mut_dist.sample(&mut self.prng))
+                .map(|&x| x * mut_dist.sample(&mut self.prng))
                 .collect();
 
             let norm: f64 = prob_phe_new.iter().sum();
@@ -121,9 +109,9 @@ impl SimEng {
         }
 
         // 5. Remove dead agents
-        self.i_agt_dec.sort_by(|a, b| b.cmp(a)); // reverse sort
-        for &i in &self.i_agt_dec {
-            self.sim_data.agt_vec.swap_remove(i);
+        i_agt_dec.sort_by(|a, b| b.cmp(a)); // reverse sort
+        for i in i_agt_dec {
+            self.sim_data.agt_vec.swap_remove(*i);
             self.sim_data.n_agt_diff -= 1;
         }
 
@@ -132,11 +120,10 @@ impl SimEng {
         if n_agt > self.par.n_agt_init {
             let excess = n_agt - self.par.n_agt_init;
 
-            self.i_agt_all.clear();
-            self.i_agt_all.extend(0..n_agt);
+            i_agt_all.clear();
+            i_agt_all.extend(0..n_agt);
 
-            let i_agt_rm: HashSet<usize> = self
-                .i_agt_all
+            let i_agt_rm: HashSet<usize> = i_agt_all
                 .choose_multiple(&mut self.prng, excess)
                 .cloned()
                 .collect();
@@ -156,13 +143,19 @@ impl SimEng {
     where
         P: AsRef<Path>,
     {
+        let mut_dist = LogNormal::new(0.0, self.par.std_dev_mut)?;
+
+        let mut i_agt_rep: Vec<usize> = Vec::with_capacity(self.par.n_agt_init);
+        let mut i_agt_dec: Vec<usize> = Vec::with_capacity(self.par.n_agt_init);
+        let mut i_agt_all: Vec<usize> = Vec::with_capacity(2 * self.par.n_agt_init);
+
         for i_save in 0..self.par.saves_per_file {
             let prog_pc = 100.0 * i_save as f64 / self.par.saves_per_file as f64;
             print!("progress: {:06.2}%\r", prog_pc);
             std::io::stdout().flush()?;
 
             for _ in 0..self.par.steps_per_save {
-                self.perform_step()?;
+                self.perform_step(&mut_dist, &mut i_agt_rep, &mut i_agt_dec, &mut i_agt_all)?;
             }
 
             self.sim_data.write_frame(&file)?;

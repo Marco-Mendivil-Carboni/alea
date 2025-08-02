@@ -2,44 +2,46 @@ use crate::data::{AgtData, SimData};
 use crate::params::Params;
 use anyhow::{Context, Result};
 use ndarray::Array1;
-use postcard::to_allocvec;
+use rand::SeedableRng;
 use rand::prelude::*;
-
+use rand_chacha::ChaCha12Rng;
 use rand_distr::{LogNormal, weighted::WeightedIndex};
 use std::collections::HashSet;
-use std::fs::File;
-use std::io::BufWriter;
-use std::io::Write;
+use std::{io::Write, path::Path};
 
 #[derive(Debug)]
 pub struct SimEng {
-    pub sim_data: SimData,
-    pub par: Params,
-    prng: StdRng,
+    par: Params,
+
+    sim_data: SimData,
+
+    prng: ChaCha12Rng,
+
     mut_dist: LogNormal<f64>,
+
     i_agt_rep: Vec<usize>,
     i_agt_dec: Vec<usize>,
     i_agt_all: Vec<usize>,
 }
 
 impl SimEng {
-    pub fn new(par: &Params) -> Self {
-        let prng = StdRng::seed_from_u64(0);
-        let mut_dist = LogNormal::new(0.0, par.std_dev_mut).unwrap();
-
-        Self {
+    pub fn new(par: Params) -> Result<Self> {
+        let n_agt_init = par.n_agt_init;
+        let std_dev_mut = par.std_dev_mut;
+        let sim_eng = Self {
+            par: par,
             sim_data: SimData {
                 env: 0,
-                agt_vec: Vec::new(),
+                agt_vec: Vec::with_capacity(n_agt_init),
                 n_agt_diff: 0,
             },
-            par: (*par).clone(),
-            prng: prng,
-            mut_dist: mut_dist,
-            i_agt_rep: Vec::with_capacity(par.n_agt_init),
-            i_agt_dec: Vec::with_capacity(par.n_agt_init),
-            i_agt_all: Vec::with_capacity(2 * par.n_agt_init),
-        }
+            prng: ChaCha12Rng::try_from_os_rng()?,
+            mut_dist: LogNormal::new(0.0, std_dev_mut)?,
+            i_agt_rep: Vec::with_capacity(n_agt_init),
+            i_agt_dec: Vec::with_capacity(n_agt_init),
+            i_agt_all: Vec::with_capacity(2 * n_agt_init),
+        };
+        Ok(sim_eng)
     }
 
     pub fn generate_initial_condition(&mut self) {
@@ -140,8 +142,8 @@ impl SimEng {
                 .collect();
 
             let mut i_agt_rm: Vec<_> = i_agt_rm.into_iter().collect();
-            i_agt_rm.sort_by(|a, b| b.cmp(a));
 
+            i_agt_rm.sort_by(|a, b| b.cmp(a));
             for i in i_agt_rm {
                 self.sim_data.agt_vec.swap_remove(i);
             }
@@ -150,38 +152,24 @@ impl SimEng {
         Ok(())
     }
 
-    pub fn run_simulation<P: AsRef<std::path::Path>>(
-        &mut self,
-        traj_path: P,
-        saves_per_file: usize,
-        steps_per_save: usize,
-    ) -> Result<()> {
-        let file = File::create(&traj_path).context("failed to create trajectory file")?;
-        let mut writer = BufWriter::new(file);
-
-        for i_save in 0..saves_per_file {
-            let prog_pc = 100.0 * i_save as f64 / saves_per_file as f64;
+    pub fn run_simulation<P>(&mut self, file: P) -> Result<()>
+    where
+        P: AsRef<Path>,
+    {
+        for i_save in 0..self.par.saves_per_file {
+            let prog_pc = 100.0 * i_save as f64 / self.par.saves_per_file as f64;
             print!("progress: {:06.2}%\r", prog_pc);
             std::io::stdout().flush()?;
 
-            for _ in 0..steps_per_save {
+            for _ in 0..self.par.steps_per_save {
                 self.perform_step()?;
             }
 
-            let encoded =
-                to_allocvec(&self.sim_data).context("failed to serialize SimData to postcard")?;
-
-            let len = encoded.len() as u64;
-            writer
-                .write_all(&len.to_le_bytes())
-                .context("failed to write frame length")?;
-            writer
-                .write_all(&encoded)
-                .context("failed to write frame data")?;
+            self.sim_data.write_frame(&file)?;
         }
 
-        println!(); // newline after progress
         log::info!("simulation ended");
+
         Ok(())
     }
 }

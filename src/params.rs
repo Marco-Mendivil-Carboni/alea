@@ -1,10 +1,12 @@
 use anyhow::{Context, Result, bail};
 use ndarray::{Array2, ArrayView1, ArrayView2};
 use serde::{Deserialize, Serialize};
-use std::fmt::{Debug, Display};
-use std::ops::RangeBounds;
+use std::{
+    fmt::{Debug, Display},
+    ops::RangeBounds,
+};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Params {
     pub n_env: usize,
     pub n_phe: usize,

@@ -44,7 +44,7 @@ fn main() -> Result<()> {
 
     let path = Path::new("frame.bin");
     let mut sim_data = if path.exists() {
-        SimData::load_from_file(path)?
+        SimData::read_frame(path)?
     } else {
         SimData {
             env: 0,
@@ -61,7 +61,7 @@ fn main() -> Result<()> {
     let agt = AgtData::new(phe, prob_phe, n_phe).context("failed to create new agent")?;
     sim_data.agt_vec.push(agt);
 
-    sim_data.save_to_file("frame.bin")?;
+    sim_data.write_frame("frame.bin")?;
 
     Ok(())
 }

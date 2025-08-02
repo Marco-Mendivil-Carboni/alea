@@ -23,6 +23,7 @@ dependencies = [
  "ndarray",
  "postcard",
  "rand",
+ "rand_chacha",
  "rand_distr",
  "regex",
  "ron",

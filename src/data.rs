@@ -1,9 +1,9 @@
 use crate::params::{check_number, check_vector};
 use anyhow::{Context, Result};
 use ndarray::Array1;
+use postcard::{from_bytes, to_allocvec};
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::Path;
+use std::{fs, path::Path};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AgtData {
@@ -35,14 +35,21 @@ pub struct SimData {
 }
 
 impl SimData {
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let data = fs::read(path).context("failed to read SimData file")?;
-        let sim_data = postcard::from_bytes(&data).context("failed to deserialize SimData")?;
-        Ok(sim_data)
+    pub fn read_frame<P>(file: P) -> Result<Self>
+    where
+        P: AsRef<Path>,
+    {
+        let file = file.as_ref();
+        let data = fs::read(file).with_context(|| format!("failed to read {}", file.display()))?;
+        from_bytes(&data).context("failed to deserialize SimData value from bytes")
     }
 
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        let data = postcard::to_allocvec(self).context("failed to serialize SimData")?;
-        fs::write(path, data).context("failed to write SimData to file")
+    pub fn write_frame<P>(&self, file: P) -> Result<()>
+    where
+        P: AsRef<Path>,
+    {
+        let file = file.as_ref();
+        let data = to_allocvec(self).context("failed to serialize SimData value to bytes")?;
+        fs::write(file, data).with_context(|| format!("failed to write {}", file.display()))
     }
 }

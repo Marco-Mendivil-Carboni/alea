@@ -26,21 +26,24 @@ impl SimEng {
         })
     }
 
-    pub fn generate_initial_condition(&mut self) {
-        let env_dist = rand::distr::Uniform::new(0, self.par.n_env);
-        self.sim_data.env = env_dist.expect("...").sample(&mut self.prng);
+    pub fn generate_initial_condition(&mut self) -> Result<()> {
+        let env_dist = rand::distr::Uniform::new(0, self.par.n_env)?;
+        self.sim_data.env = env_dist.sample(&mut self.prng);
 
         self.sim_data.agt_vec.clear();
-        let phe_dist = rand::distr::Uniform::new(0, self.par.n_phe);
+        self.sim_data.agt_vec.reserve(self.par.n_agt_init);
 
+        let phe_dist = rand::distr::Uniform::new(0, self.par.n_phe)?;
         for _ in 0..self.par.n_agt_init {
-            let phe = phe_dist.expect("...").sample(&mut self.prng);
+            let phe = phe_dist.sample(&mut self.prng);
             let prob = vec![1.0 / self.par.n_phe as f64; self.par.n_phe];
             let prob_phe = Array1::from(prob);
             self.sim_data
                 .agt_vec
-                .push(AgtData::new(phe, prob_phe, self.par.n_phe).unwrap());
+                .push(AgtData::new(phe, prob_phe, self.par.n_phe).context("...")?);
         }
+
+        Ok(())
     }
 
     pub fn perform_step(
@@ -102,7 +105,8 @@ impl SimEng {
                 *x /= norm;
             }
 
-            let new_agt = AgtData::new(phe_new, Array1::from(prob_phe_new), self.par.n_phe)?;
+            let new_agt =
+                AgtData::new(phe_new, Array1::from(prob_phe_new), self.par.n_phe).context("...")?;
             self.sim_data.agt_vec.push(new_agt);
 
             self.sim_data.n_agt_diff += 1;
@@ -155,7 +159,8 @@ impl SimEng {
             std::io::stdout().flush()?;
 
             for _ in 0..self.par.steps_per_save {
-                self.perform_step(&mut_dist, &mut i_agt_rep, &mut i_agt_dec, &mut i_agt_all)?;
+                self.perform_step(&mut_dist, &mut i_agt_rep, &mut i_agt_dec, &mut i_agt_all)
+                    .context("...")?;
             }
 
             self.sim_data.write_frame(&file)?;

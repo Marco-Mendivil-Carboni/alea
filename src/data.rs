@@ -40,7 +40,7 @@ impl SimData {
         P: AsRef<Path>,
     {
         let file = file.as_ref();
-        let data = fs::read(file).with_context(|| format!("failed to read {}", file.display()))?;
+        let data = fs::read(file).with_context(|| format!("failed to read {:?}", file))?;
         from_bytes(&data).context("failed to deserialize SimData value from bytes")
     }
 
@@ -50,6 +50,6 @@ impl SimData {
     {
         let file = file.as_ref();
         let data = to_allocvec(self).context("failed to serialize SimData value to bytes")?;
-        fs::write(file, data).with_context(|| format!("failed to write {}", file.display()))
+        fs::write(file, data).with_context(|| format!("failed to write {:?}", file))
     }
 }

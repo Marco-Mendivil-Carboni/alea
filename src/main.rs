@@ -53,7 +53,7 @@ fn main() -> Result<()> {
         }
     };
 
-    log::info!("SimData loaded successfully: {:?}", sim_data);
+    log::info!("SimData loaded successfully: {:#?}", sim_data);
 
     let n_phe = par.n_phe;
     let phe = 0;

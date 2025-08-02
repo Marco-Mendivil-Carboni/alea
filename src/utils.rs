@@ -44,7 +44,7 @@ where
     let regex = Regex::new(pattern)?;
 
     let count = fs::read_dir(dir)
-        .with_context(|| format!("failed to read {}", dir.display()))?
+        .with_context(|| format!("failed to read {:?}", dir))?
         .filter_map(Result::ok)
         .filter(|entry| {
             entry

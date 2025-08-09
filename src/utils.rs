@@ -36,12 +36,9 @@ pub fn init_logger() {
         .init();
 }
 
-pub fn regex_count<P>(dir: P, pattern: &str) -> Result<usize>
-where
-    P: AsRef<Path>,
-{
+pub fn count_entries<P: AsRef<Path>>(dir: P, regex: &str) -> Result<usize> {
     let dir = dir.as_ref();
-    let regex = Regex::new(pattern)?;
+    let regex = Regex::new(regex)?;
 
     let count = fs::read_dir(dir)
         .with_context(|| format!("failed to read {:?}", dir))?

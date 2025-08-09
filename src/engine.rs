@@ -8,7 +8,11 @@ use rand_chacha::ChaCha12Rng;
 use rand_distr::{LogNormal, weighted::WeightedIndex};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::{io::Write, path::Path};
+use std::{
+    fs::OpenOptions,
+    io::{BufWriter, Write},
+    path::Path,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SimEng {
@@ -143,28 +147,38 @@ impl SimEng {
         Ok(())
     }
 
-    pub fn run_simulation<P>(&mut self, file: P) -> Result<()>
-    where
-        P: AsRef<Path>,
-    {
+    pub fn run_simulation<P: AsRef<Path>>(&mut self, file: P) -> Result<()> {
         let mut_dist = LogNormal::new(0.0, self.par.std_dev_mut)?;
 
         let mut i_agt_rep: Vec<usize> = Vec::with_capacity(self.par.n_agt_init);
         let mut i_agt_dec: Vec<usize> = Vec::with_capacity(self.par.n_agt_init);
         let mut i_agt_all: Vec<usize> = Vec::with_capacity(2 * self.par.n_agt_init);
 
-        for i_save in 0..self.par.saves_per_file {
-            let prog_pc = 100.0 * i_save as f64 / self.par.saves_per_file as f64;
-            print!("progress: {:06.2}%\r", prog_pc);
-            std::io::stdout().flush()?;
+        let file = file.as_ref();
 
+        let file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(file)
+            .with_context(|| format!("failed to open {:?}", file))?;
+
+        let mut writer = BufWriter::new(file);
+
+        for i_save in 0..self.par.saves_per_file {
             for _ in 0..self.par.steps_per_save {
                 self.perform_step(&mut_dist, &mut i_agt_rep, &mut i_agt_dec, &mut i_agt_all)
                     .context("...")?;
             }
 
-            self.sim_data.write_frame(&file)?;
+            self.sim_data.write_frame(&mut writer)?;
+            // log::info!("SimData: {:#?}", self.sim_data);
+
+            let prog_pc = 100.0 * (i_save + 1) as f64 / self.par.saves_per_file as f64;
+            log::info!("progress: {:06.2}%", prog_pc);
         }
+
+        writer.flush()?;
 
         log::info!("simulation ended");
 

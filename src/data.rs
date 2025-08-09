@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use ndarray::Array1;
 use postcard::{from_bytes, to_allocvec};
 use serde::{Deserialize, Serialize};
-use std::{fs, path::Path};
+use std::io::{Read, Write};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AgtData {
@@ -43,21 +43,36 @@ impl SimData {
         }
     }
 
-    pub fn read_frame<P>(file: P) -> Result<Self>
-    where
-        P: AsRef<Path>,
-    {
-        let file = file.as_ref();
-        let data = fs::read(file).with_context(|| format!("failed to read {:?}", file))?;
-        from_bytes(&data).context("failed to deserialize SimData value from bytes")
+    pub fn read_frame<R: Read>(reader: &mut R) -> Result<Self> {
+        let mut len_bytes = [0u8; size_of::<u32>()];
+        reader
+            .read_exact(&mut len_bytes)
+            .context("failed to read length prefix")?;
+
+        let len = u32::from_le_bytes(len_bytes);
+
+        let mut sim_data_bytes = vec![0u8; len as usize];
+        reader
+            .read_exact(&mut sim_data_bytes)
+            .context("failed to read SimData bytes")?;
+
+        from_bytes(&sim_data_bytes).context("failed to deserialize SimData value from bytes")
     }
 
-    pub fn write_frame<P>(&self, file: P) -> Result<()>
-    where
-        P: AsRef<Path>,
-    {
-        let file = file.as_ref();
-        let data = to_allocvec(self).context("failed to serialize SimData value to bytes")?;
-        fs::write(file, data).with_context(|| format!("failed to write {:?}", file))
+    pub fn write_frame<W: Write>(&self, writer: &mut W) -> Result<()> {
+        let sim_data_bytes =
+            to_allocvec(self).context("failed to serialize SimData value to bytes")?;
+
+        let len = sim_data_bytes.len() as u32;
+
+        writer
+            .write_all(&len.to_le_bytes())
+            .context("failed to write length prefix")?;
+
+        writer
+            .write_all(&sim_data_bytes)
+            .context("failed to write SimData bytes")?;
+
+        Ok(())
     }
 }

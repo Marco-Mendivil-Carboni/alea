@@ -1,36 +1,11 @@
 use anyhow::{Context, Result};
-use chrono::Local;
-use colored::Colorize;
 use env_logger::Builder;
-use log::{Level, LevelFilter};
+use log::LevelFilter;
 use regex::Regex;
-use std::{fs, io::Write, path::Path};
+use std::{fs, path::Path};
 
 pub fn init_logger() {
     Builder::new()
-        .format(|buffer, record| {
-            let timestamp = Local::now().format("%d/%m/%y %H:%M:%S%.6f");
-
-            let level_tag = record.level().as_str().to_lowercase();
-            let level_tag = match record.level() {
-                Level::Error => level_tag.red().bold(),
-                Level::Warn => level_tag.yellow(),
-                _ => level_tag.green(),
-            };
-
-            let file = record.file().unwrap_or("unknown");
-            let line = record.line().unwrap_or(0);
-
-            writeln!(
-                buffer,
-                "{} [{:5}] [{}:{}] {}",
-                timestamp,
-                level_tag,
-                file,
-                line,
-                record.args()
-            )
-        })
         .filter_level(LevelFilter::Info)
         .parse_default_env()
         .init();
@@ -39,7 +14,6 @@ pub fn init_logger() {
 pub fn count_entries<P: AsRef<Path>>(dir: P, regex: &str) -> Result<usize> {
     let dir = dir.as_ref();
     let regex = Regex::new(regex)?;
-
     let count = fs::read_dir(dir)
         .with_context(|| format!("failed to read {:?}", dir))?
         .filter_map(Result::ok)
@@ -50,6 +24,5 @@ pub fn count_entries<P: AsRef<Path>>(dir: P, regex: &str) -> Result<usize> {
                 .is_some_and(|name| regex.is_match(name))
         })
         .count();
-
     Ok(count)
 }

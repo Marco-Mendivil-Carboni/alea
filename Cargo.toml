@@ -5,8 +5,6 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.98"
-chrono = "0.4.41"
-colored = "3.0.0"
 env_logger = "0.11.8"
 log = "0.4.27"
 ndarray = { version = "0.16.1", features = ["serde"] }

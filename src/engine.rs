@@ -2,10 +2,9 @@ use crate::data::{AgtData, SimData};
 use crate::params::Params;
 use anyhow::{Context, Result};
 use ndarray::Array1;
-use rand::SeedableRng;
 use rand::prelude::*;
 use rand_chacha::ChaCha12Rng;
-use rand_distr::{LogNormal, weighted::WeightedIndex};
+use rand_distr::{Bernoulli, LogNormal, Uniform, weighted::WeightedIndex};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::{
@@ -31,13 +30,13 @@ impl SimEng {
     }
 
     pub fn generate_initial_condition(&mut self) -> Result<()> {
-        let env_dist = rand::distr::Uniform::new(0, self.par.n_env)?;
+        let env_dist = Uniform::new(0, self.par.n_env)?;
         self.sim_data.env = env_dist.sample(&mut self.prng);
 
         self.sim_data.agt_vec.clear();
         self.sim_data.agt_vec.reserve(self.par.n_agt_init);
 
-        let phe_dist = rand::distr::Uniform::new(0, self.par.n_phe)?;
+        let phe_dist = Uniform::new(0, self.par.n_phe)?;
         for _ in 0..self.par.n_agt_init {
             let phe = phe_dist.sample(&mut self.prng);
             let prob = vec![1.0 / self.par.n_phe as f64; self.par.n_phe];
@@ -50,7 +49,7 @@ impl SimEng {
         Ok(())
     }
 
-    pub fn perform_step(
+    fn perform_step(
         &mut self,
         mut_dist: &LogNormal<f64>,
         i_agt_rep: &mut Vec<usize>,
@@ -68,14 +67,14 @@ impl SimEng {
             .par
             .prob_rep
             .outer_iter()
-            .map(|v| rand::distr::Bernoulli::new(v[self.sim_data.env]).unwrap()) //PROBABLY WRONG
+            .map(|v| Bernoulli::new(v[self.sim_data.env]).unwrap()) //PROBABLY WRONG
             .collect();
 
         let dec_dist_vec: Vec<_> = self
             .par
             .prob_dec
             .outer_iter()
-            .map(|v| rand::distr::Bernoulli::new(v[self.sim_data.env]).unwrap()) //PROBABLY WRONG
+            .map(|v| Bernoulli::new(v[self.sim_data.env]).unwrap()) //PROBABLY WRONG
             .collect();
 
         // 3. Select replicating and dying agents

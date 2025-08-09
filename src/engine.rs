@@ -6,7 +6,6 @@ use rand::prelude::*;
 use rand_chacha::ChaCha12Rng;
 use rand_distr::{Bernoulli, LogNormal, Uniform, weighted::WeightedIndex};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::{
     fs::OpenOptions,
     io::{BufWriter, Write},
@@ -30,20 +29,22 @@ impl SimEng {
     }
 
     pub fn generate_initial_condition(&mut self) -> Result<()> {
-        let env_dist = Uniform::new(0, self.par.n_env)?;
+        let env_dist =
+            Uniform::new(0, self.par.n_env).context("failed to create environment distribution")?;
         self.sim_data.env = env_dist.sample(&mut self.prng);
 
         self.sim_data.agt_vec.clear();
         self.sim_data.agt_vec.reserve(self.par.n_agt_init);
 
-        let phe_dist = Uniform::new(0, self.par.n_phe)?;
+        let phe_dist =
+            Uniform::new(0, self.par.n_phe).context("failed to create phenotype distribution")?;
         for _ in 0..self.par.n_agt_init {
             let phe = phe_dist.sample(&mut self.prng);
-            let prob = vec![1.0 / self.par.n_phe as f64; self.par.n_phe];
-            let prob_phe = Array1::from(prob);
-            self.sim_data
-                .agt_vec
-                .push(AgtData::new(phe, prob_phe, self.par.n_phe).context("...")?);
+            let prob_phe = Array1::from_elem(self.par.n_phe, 1.0 / self.par.n_phe as f64);
+            self.sim_data.agt_vec.push(
+                AgtData::new(phe, prob_phe, self.par.n_phe)
+                    .context("failed to create new agent")?,
+            );
         }
 
         Ok(())
@@ -67,14 +68,14 @@ impl SimEng {
             .par
             .prob_rep
             .outer_iter()
-            .map(|v| Bernoulli::new(v[self.sim_data.env]).unwrap()) //PROBABLY WRONG
+            .map(|v| Bernoulli::new(v[self.sim_data.env]).unwrap())
             .collect();
 
         let dec_dist_vec: Vec<_> = self
             .par
             .prob_dec
             .outer_iter()
-            .map(|v| Bernoulli::new(v[self.sim_data.env]).unwrap()) //PROBABLY WRONG
+            .map(|v| Bernoulli::new(v[self.sim_data.env]).unwrap())
             .collect();
 
         // 3. Select replicating and dying agents
@@ -130,12 +131,10 @@ impl SimEng {
             i_agt_all.clear();
             i_agt_all.extend(0..n_agt);
 
-            let i_agt_rm: HashSet<usize> = i_agt_all
+            let mut i_agt_rm: Vec<usize> = i_agt_all
                 .choose_multiple(&mut self.prng, excess)
                 .cloned()
                 .collect();
-
-            let mut i_agt_rm: Vec<_> = i_agt_rm.into_iter().collect();
 
             i_agt_rm.sort_by(|a, b| b.cmp(a));
             for i in i_agt_rm {

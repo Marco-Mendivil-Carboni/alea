@@ -6,6 +6,7 @@ use std::{fs, path::Path};
 
 pub fn init_logger() {
     Builder::new()
+        .format_timestamp_millis()
         .filter_level(LevelFilter::Info)
         .parse_default_env()
         .init();

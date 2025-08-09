@@ -27,7 +27,7 @@ fn main() -> Result<()> {
 
     let par_str = fs::read_to_string("parameters.ron")?;
     let par = Params::new(&par_str)
-        .context("failed to initialize parameters")
+        .context("failed to create parameters")
         .unwrap_or_else(|err| {
             log::error!("{:?}", err);
             std::process::exit(1);
